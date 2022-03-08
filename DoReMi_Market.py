@@ -1,18 +1,21 @@
+# 고등학교 수행평가로 냈던 프로젝트였는데, 120줄 제한이 있어서
+# 변수 선언도 거의 안하고, 삼항연산자도 많이 사용하여 코드 가독성 자체는 많이 떨어집니다.
+
 from bs4 import BeautifulSoup as BS
 import requests, re, random
 from selenium import webdriver as WD
-def get_lyrics(songId):
+def get_lyrics(songId): # 멜론에서 노래의 songId를 이용하여 가사를 크롤링 하는 함수
     lyrics = str(BS(requests.get('https://www.melon.com/song/detail.htm?songId=' + str(songId), headers=header).text, 'lxml').find("div", {"class": "lyric"})).replace('<div class="lyric" id="d_video_summary"><!-- height:auto; 로 변경시, 확장됨 -->', '').replace('</div>', '').strip().split('<br/>')
     lyrics[:], isKoreanOrEnglish = [x for x in lyrics if x], []  #빈 문자열 제거
-    if diff == 'M':
+    if diff == 'M': # 난이도 중간일 때, 한 문장을 맞추게끔 문제를 출력함
         i = random.randrange(len(lyrics) - 2)
         answer = lyrics[i].split()
         lyrics_list = [lyrics[i - 1], '___________________', lyrics[i + 1]]
-    if diff == 'H':
+    if diff == 'H': # 난이도가 어려움일 때, 세 문장을 맞추게끔 문제를 출력함
         i = random.randrange(len(lyrics) - 3)
         answer = (lyrics[i-1] + ' ' + lyrics[i] + ' ' + lyrics[i+1]).split()
         lyrics_list = [lyrics[i-2],'___________________', '___________________', '___________________', lyrics[i+2]]
-    for a in answer:
+    for a in answer: # 힌트를 미리 구하는 함수, 한글 글자 수와 영어 글자 수를 세는 반복문이다
         k_count, e_count = 0, 0
         for c in a:
             if ord('가') <= ord(c) <= ord('힣'):
@@ -22,9 +25,9 @@ def get_lyrics(songId):
         isKoreanOrEnglish.append('한글') if k_count > 0 else isKoreanOrEnglish.append('영어')
     lenth_hint = [x+' ' + str(len(y)) + '글자' for x, y in zip(isKoreanOrEnglish, answer)]
     return lyrics_list, answer, lenth_hint
-def play_song(title, SID):
+def play_song(title, SID): # selenium을 이용하여 Chrome browser를 조작하여 Youtube에서 노래를 틀어주는 함수
     rand, breakValue, i = random.randrange(len(title)), True, 0
-    global point
+    global point # 노래를 선택하는 반복문
     a = input('%s\n노래가 선택되었습니다.\n이 노래로 계속할까요? (Y, N으로 답해주세요)' % title[rand]).upper()
     while a == 'N':
         rand = random.randrange(len(title))
@@ -38,7 +41,7 @@ def play_song(title, SID):
     title[rand] = title[rand].replace('&', '+')
     driver.get('https://www.youtube.com/results?search_query=' + title[rand] + ' 가사')
     driver.find_elements_by_class_name("style-scope ytd-video-renderer")[i].click()
-    a = input('노래가 문제가 있으면 Y, 없으면 N을 쳐주세요.').upper()
+    a = input('노래가 문제가 있으면 Y, 없으면 N을 쳐주세요.').upper() # 코드 길이 제약 때문에 강제로 노래 제목으로 검색했을 때 유튜브 제일 위에 뜨는 영상을 틀게 했는데, 만약 이게 광고일 경우 건너뛸 수 있게끔 함
     while a != 'N':
         if a == 'Y':
             print('다른 영상을 틉니다.')
@@ -77,13 +80,13 @@ def play_song(title, SID):
                 point -= 100
     a = input('정답입니다. 총 %d점 받았습니다.\n 다시 하시려면 RE를 눌러주세요\n 종료하시려면 아무거나 누르세요' % point)
     start() if a == 'RE' else driver.quit()
-def crawl_artist():
+def crawl_artist(): # 특정 아티스트의 노래를 크롤링하는 함수
     artist = input('\n아티스트의 이름을 입력해주세요.')
     SID, title = BS(requests.get('https://www.melon.com/search/song/index.htm?q=' + str(artist) + '&section=artist', headers=header).text, 'lxml').select('a[href*=playSong]', limit=10), BS(requests.get('https://www.melon.com/search/song/index.htm?q=' + str(artist) + '&section=artist', headers=header).text, 'lxml').find_all("a", {"class": "fc_gray"}, limit=10)
     for i in range(len(title)):
         title[i], SID[i] = title[i].text, re.search(r",'(\d+)'", SID[i]['href']).group(1)
     play_song(title, SID)
-def crawl_date_chart():
+def crawl_date_chart(): # 특정 날짜의 일간차트 노래를 크롤링하는 함수
     date = input('\n날짜를 입력해주세요. (ex. 20200516) / 2018년 10월 28일 이후로 됨')
     year, month, day, SID = date[0:4], date[4:6], date[6:8], []
     title = BS(requests.get('https://guyso.me/melon/dailychart/' + year + '/' + month + '/' + day, headers=header).text, 'lxml').find_all("td", {"class": "subject"}, limit=10)
@@ -91,23 +94,23 @@ def crawl_date_chart():
         title[i] = title[i].find('p').text
         SID.append(re.search(r",'(\d+)'", BS(requests.get('https://www.melon.com/search/total/index.htm?q=' + str(title[i]), headers = header).text, 'lxml').select('a[href*=playSong]')[0]['href']).group(1))
     play_song(title, SID)
-def crawl_year_chart():
+def crawl_year_chart(): # 특정 년도의 연간차트 노래를 크롤링하는 함수
     year = input('\n연도를 입력해주세요. (ex. 2020)\n')
     driver.get('https://www.melon.com/chart/age/index.htm?chartType=YE&chartGenre=KPOP&chartDate=' + year)
     SID, title = BS(driver.page_source, 'lxml').select('a[href*=playSong]', limit=10), BS(driver.page_source, 'lxml').find_all("div", {"class": "ellipsis rank01"}, limit=10)
     for i in range(len(title)):
         title[i], SID[i] = title[i].find('a').text, re.search(r",'(\d+)'", SID[i]['href']).group(1)
     play_song(title, SID)
-def crawl_live_chart():
+def crawl_live_chart(): # 실시간차트의 노래를 크롤링하는 함수
     title, SID = BS(requests.get('https://www.melon.com/chart/index.htm', headers=header).text, 'html.parser').find_all("div", {"class": "ellipsis rank01"}, limit=10), BS(requests.get('https://www.melon.com/chart/index.htm', headers=header).text, 'html.parser').select('a[href*=playSong]', limit=10)
     for i in range(len(title)):
         title[i], SID[i] = title[i].text, re.search(r",(\d+)", SID[i]['href']).group(1)
     play_song(title, SID)
-def choose_song_list(status = True):
+def choose_song_list(status = True): # 노래를 어디서 뽑을지 정하는 함수
     print('\n숫자를 잘못 입력하셨습니다. 다시 입력해주세요') if status == False else None
     number = input("어떤 노래 리스트를 선택하시겠습니까?\n1. 특정 아티스트\n2. 특정 날의 일간차트\n3. 특정년도 연간차트\n4. 현재 실시간 차트\n")
     crawl_artist() if number == '1' else crawl_date_chart() if number == '2' else crawl_year_chart() if number == '3' else crawl_live_chart() if number == '4' else choose_song_list(False)
-def start():
+def start(): # 
     driver.get('https://www.youtube.com')
     global diff, point
     diff, point = input("난이도를 입력해주세요.\n(운영중단)*E: 가사 2~3줄 중 몇몇 단어만 맞추기\n*M: 가사 3줄 중 1줄만 맞추기\n*H: 3줄 다 맞추기\n(운영중단)*S: 다 맞추기\n").upper(), 1000
